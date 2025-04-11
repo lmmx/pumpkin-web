@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pumpkin Solver Web Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #333;
+      text-align: center;
+    }
+    .constraint-form {
+      background-color: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 8px 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-left: 4px solid #4CAF50;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: inline-block;
+      width: 200px;
+    }
+    input {
+      padding: 8px;
+      width: 80px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pumpkin Solver Web Demo</h1>
+  
+  <div class="constraint-form">
+    <h2>Linear Constraint Solver</h2>
+    <p>Solve the constraint: x + y = 12</p>
+    
+    <div class="input-group">
+      <label for="minX">Domain for x:</label>
+      <input type="number" id="minX" value="0" min="-100" max="100"> to 
+      <input type="number" id="maxX" value="12" min="-100" max="100">
+    </div>
+    
+    <div class="input-group">
+      <label for="minY">Domain for y:</label>
+      <input type="number" id="minY" value="0" min="-100" max="100"> to 
+      <input type="number" id="maxY" value="12" min="-100" max="100">
+    </div>
+    
+    <button id="solveButton">Solve Constraint</button>
+  </div>
+  
+  <div id="results">
+    <p>Results will appear here after solving...</p>
+  </div>
+
+  <!-- Load the Emscripten JavaScript -->
+  <script src="pumpkin_web.js"></script>
+  <script>
+    // Set up the Module configuration
+    var Module = {
+      onRuntimeInitialized: function() {
+        console.log("WebAssembly module initialized");
+        document.getElementById("solveButton").addEventListener("click", solveConstraint);
+      }
+    };
+
+    function solveConstraint() {
+      // Get values from input fields
+      const minX = parseInt(document.getElementById("minX").value);
+      const maxX = parseInt(document.getElementById("maxX").value);
+      const minY = parseInt(document.getElementById("minY").value);
+      const maxY = parseInt(document.getElementById("maxY").value);
+
+      try {
+        // Call the exported function from our Wasm module
+        const resultPtr = Module.ccall(
+          'solve_constraint',  // name of C function
+          'number',            // return type
+          ['number', 'number', 'number', 'number'], // argument types
+          [minX, maxX, minY, maxY]                   // arguments
+        );
+
+        // Get the result string from the pointer
+        const resultStr = Module.UTF8ToString(resultPtr);
+        
+        // Free the allocated string memory
+        Module.ccall(
+          'free_string',
+          null,
+          ['number'],
+          [resultPtr]
+        );
+
+        // Parse the JSON result
+        const result = JSON.parse(resultStr);
+        
+        // Display the result
+        const resultsDiv = document.getElementById("results");
+        
+        if (result.success) {
+          resultsDiv.innerHTML = 
+            `<h3>Solution Found</h3>
+             <p>x = ${result.x}</p>
+             <p>y = ${result.y}</p>
+             <p>Verification: ${result.x} + ${result.y} = ${result.x + result.y}</p>`;
+        } else {
+          resultsDiv.innerHTML = 
+            `<h3>No Solution</h3>
+             <p>${result.message}</p>`;
+        }
+      } catch (error) {
+        console.error("Error calling solve_constraint:", error);
+        document.getElementById("results").innerHTML = 
+          `<h3>Error</h3>
+           <p>An error occurred while solving the constraint: ${error.message}</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
