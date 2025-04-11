@@ -10,18 +10,24 @@ To build this project, you'll need:
 2. **Emscripten SDK**: Follow the [installation instructions](https://emscripten.org/docs/getting_started/downloads.html)
 3. **A local copy of pumpkin-solver**: This should be compiled with the wasm32-unknown-emscripten target
 
+Specifically I am using the lmmx:feat/wasm-emscripten-target fork branch in PR #171
+([link](https://github.com/ConSol-Lab/Pumpkin/pull/171)) cloned as a sibling directory to this repo,
+so the `pumpkin-solver` crate lives at `../pumpkin-emscripten/pumpkin-solver`, note that I have
+hardcoded the name for the local clone of this branch of the Pumpkin repo as "pumpkin-emscripten"
+and if you wish to use another you should modify it in `Cargo.toml`
+
 ## Project Structure
 
 ```
 pumpkin-web-emscripten/
 ├── Cargo.toml                # Rust dependencies and config
 ├── build.rs                  # Rust build script
-├── post-build.rs             # Script to copy build artifacts
-├── serve.sh                  # Convenience script for building and serving
+├── deploy.sh                 # Convenience script for building artifacts and moving to dist/
 ├── index.html                # HTML page for the demo
 ├── src/
 │   └── main.rs               # Rust code with Emscripten exports
-└── www/                      # Output directory for compiled files
+├── target/                   # Build artifacts go here
+└── dist/                     # Output directory for compiled files
 ```
 
 ## Building the Project
