@@ -78,70 +78,79 @@
   </div>
   
   <div id="results">
-    <p>Results will appear here after solving...</p>
+    <p>Initializing WebAssembly module...</p>
   </div>
 
   <!-- Load the Emscripten JavaScript -->
-  <script src="pumpkin_web.js"></script>
-  <script>
-    // Set up the Module configuration
-    var Module = {
-      onRuntimeInitialized: function() {
-        console.log("WebAssembly module initialized");
-        document.getElementById("solveButton").addEventListener("click", solveConstraint);
-      }
-    };
+  <script type="module">
+    import createModule from './pumpkin_web.js';
 
-    function solveConstraint() {
-      // Get values from input fields
-      const minX = parseInt(document.getElementById("minX").value);
-      const maxX = parseInt(document.getElementById("maxX").value);
-      const minY = parseInt(document.getElementById("minY").value);
-      const maxY = parseInt(document.getElementById("maxY").value);
+    // Initialize the module
+    try {
+      const Module = await createModule();
+      console.log("WebAssembly module initialized");
 
-      try {
-        // Call the exported function from our Wasm module
-        const resultPtr = Module.ccall(
-          'solve_constraint',  // name of C function
-          'number',            // return type
-          ['number', 'number', 'number', 'number'], // argument types
-          [minX, maxX, minY, maxY]                   // arguments
-        );
+      // Enable button and update status
+      document.getElementById("solveButton").disabled = false;
+      document.getElementById("results").innerHTML = "<p>Results will appear here after solving...</p>";
 
-        // Get the result string from the pointer
-        const resultStr = Module.UTF8ToString(resultPtr);
-        
-        // Free the allocated string memory
-        Module.ccall(
-          'free_string',
-          null,
-          ['number'],
-          [resultPtr]
-        );
+      // Add event listener once module is loaded
+      document.getElementById("solveButton").addEventListener("click", () => {
+        // Get values from input fields
+        const minX = parseInt(document.getElementById("minX").value);
+        const maxX = parseInt(document.getElementById("maxX").value);
+        const minY = parseInt(document.getElementById("minY").value);
+        const maxY = parseInt(document.getElementById("maxY").value);
 
-        // Parse the JSON result
-        const result = JSON.parse(resultStr);
-        
-        // Display the result
-        const resultsDiv = document.getElementById("results");
-        
-        if (result.success) {
-          resultsDiv.innerHTML = 
-            `<h3>Solution Found</h3>
-             <p>x = ${result.x}</p>
-             <p>y = ${result.y}</p>
-             <p>Verification: ${result.x} + ${result.y} = ${result.x + result.y}</p>`;
-        } else {
-          resultsDiv.innerHTML = 
-            `<h3>No Solution</h3>
-             <p>${result.message}</p>`;
+        try {
+          // Call the exported function from our Wasm module
+          const resultPtr = Module.ccall(
+            'solve_constraint',  // name of C function
+            'number',            // return type
+            ['number', 'number', 'number', 'number'], // argument types
+            [minX, maxX, minY, maxY]                  // arguments
+          );
+
+          // Get the result string from the pointer
+          const resultStr = Module.UTF8ToString(resultPtr);
+
+          // Free the allocated string memory
+          Module.ccall(
+            'free_string',
+            null,
+            ['number'],
+            [resultPtr]
+          );
+
+          // Parse the JSON result
+          const result = JSON.parse(resultStr);
+
+          // Display the result
+          const resultsDiv = document.getElementById("results");
+
+          if (result.success) {
+            resultsDiv.innerHTML =
+              `<h3>Solution Found</h3>
+               <p>x = ${result.x}</p>
+               <p>y = ${result.y}</p>
+               <p>Verification: ${result.x} + ${result.y} = ${result.x + result.y}</p>`;
+          } else {
+            resultsDiv.innerHTML =
+              `<h3>No Solution</h3>
+               <p>${result.message}</p>`;
+          }
+        } catch (error) {
+          console.error("Error calling solve_constraint:", error);
+          document.getElementById("results").innerHTML =
+            `<h3>Error</h3>
+             <p>An error occurred while solving the constraint: ${error.message}</p>`;
         }
-      } catch (error) {
-        console.error("Error calling solve_constraint:", error);
-        document.getElementById("results").innerHTML = 
-          `<h3>Error</h3>
-           <p>An error occurred while solving the constraint: ${error.message}</p>`;
-      }
+      });
+    } catch (error) {
+      console.error("Failed to initialize WebAssembly module:", error);
+      document.getElementById("results").innerHTML =
+        `<h3>Error</h3>
+         <p>Failed to initialize the constraint solver: ${error}</p>`;
     }
   </script>
 </body>
